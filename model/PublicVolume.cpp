@@ -20,10 +20,10 @@
 #include "Utils.h"
 #include "VolumeManager.h"
 #include "fs/Exfat.h"
-#include "fs/Vfat.h"
 #include "fs/Ext4.h"
 #include "fs/F2fs.h"
 #include "fs/Ntfs.h"
+#include "fs/Vfat.h"
 
 #include <android-base/logging.h>
 #include <android-base/properties.h>
@@ -104,6 +104,7 @@ status_t PublicVolume::doMount() {
     readMetadata();
 
     if (!IsFilesystemSupported(mFsType)) {
+    } else {
         LOG(ERROR) << getId() << " unsupported filesystem " << mFsType;
         return -EIO;
     }
@@ -134,44 +135,6 @@ status_t PublicVolume::doMount() {
     }
 
     int ret = 0;
-    if (mFsType == "exfat") {
-        ret = exfat::Check(mDevPath);
-    } else if (mFsType == "ext4") {
-        ret = ext4::Check(mDevPath, mRawPath);
-    } else if (mFsType == "f2fs") {
-        ret = f2fs::Check(mDevPath);
-    } else if (mFsType == "ntfs") {
-        ret = ntfs::Check(mDevPath);
-    } else if (mFsType == "vfat") {
-        ret = vfat::Check(mDevPath);
-    } else {
-        LOG(WARNING) << getId() << " unsupported filesystem check, skipping";
-    }
-    if (ret) {
-        LOG(ERROR) << getId() << " failed filesystem check";
-        return -EIO;
-    }
-
-    if (mFsType == "exfat") {
-        ret = exfat::Mount(mDevPath, mRawPath, AID_ROOT,
-                 (isVisible ? AID_MEDIA_RW : AID_EXTERNAL_STORAGE), 0007);
-    } else if (mFsType == "ext4") {
-        ret = ext4::Mount(mDevPath, mRawPath, false, false, true);
-    } else if (mFsType == "f2fs") {
-        ret = f2fs::Mount(mDevPath, mRawPath);
-    } else if (mFsType == "ntfs") {
-        ret = ntfs::Mount(mDevPath, mRawPath, AID_ROOT,
-                 (isVisible ? AID_MEDIA_RW : AID_EXTERNAL_STORAGE), 0007);
-    } else if (mFsType == "vfat") {
-        ret = vfat::Mount(mDevPath, mRawPath, false, false, false, AID_ROOT,
-                (isVisible ? AID_MEDIA_RW : AID_EXTERNAL_STORAGE), 0007, true);
-    } else {
-        ret = ::mount(mDevPath.c_str(), mRawPath.c_str(), mFsType.c_str(), 0, NULL);
-    }
-    if (ret) {
-        PLOG(ERROR) << getId() << " failed to mount " << mDevPath;
-        return -EIO;
-        int ret = 0;
     if (mFsType == "exfat") {
         ret = exfat::Check(mDevPath);
     } else if (mFsType == "ext4") {
@@ -416,7 +379,7 @@ status_t PublicVolume::doFormat(const std::string& fsType) {
     } else {
         LOG(ERROR) << getId() << " unrecognized filesystem " << fsType;
         res = -1;
-        errno = EIO;;
+        errno = EIO;
     }
 
     if (res != OK) {
